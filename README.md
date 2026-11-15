@@ -1,4 +1,4 @@
-# Lagrange Multipliers and Ridge Regression: Complete Notes
+# Lagrange Multipliers and Ridge Regression
 
 2026-11-14
 
