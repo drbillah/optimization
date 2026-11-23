@@ -1,0 +1,309 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Eigenvalues in 3D</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Literata:opsz,wght@7..72,400;7..72,600&display=swap" rel="stylesheet">
+<style>
+/* VOICE: a calm lecture note, exact and unhurried
+   IDEA: a scientific plate - each figure is a live specimen you can turn in your hands
+   PICTURE: rotatable 3D surfaces of x^T A x, driven by the matrix entries
+   COLOUR and TYPE: white plate, ink, prussian for positive/up, carmine for negative/down; Literata throughout
+   LAYOUT: narrow text column beside large figures; stacks to one column below 900px */
+:root{color-scheme:light dark;--bg:light-dark(#ffffff,#0f1217);--ink:light-dark(#10131a,#e8e9ec);--mute:light-dark(#555b66,#a3a8b2);--rule:light-dark(#d9dbe0,#2a2f38);--panel:light-dark(#f5f6f8,#161a21);--pos:light-dark(#0b4f8a,#6aa8e0);--neg:light-dark(#c1121f,#f0606c);--lvl:light-dark(#5a3fb0,#a998ef)}
+:root[data-theme=light]{color-scheme:light}:root[data-theme=dark]{color-scheme:dark}
+*{box-sizing:border-box;min-width:0}
+body{margin:0;background:var(--bg);color:var(--ink);font:17px/1.6 Literata,Georgia,serif;overflow-x:clip}
+.band{padding:clamp(28px,4vw,64px) max(5vw,16px);max-width:1240px;margin:0 auto}
+h1{font-size:clamp(34px,5vw,50px);line-height:1.05;font-weight:600;margin:0 0 14px;text-wrap:balance}
+h2{font-size:clamp(26px,3vw,32px);line-height:1.1;font-weight:600;margin:0 0 12px;text-wrap:balance}
+p{margin:0 0 12px;max-width:66ch}.mute{color:var(--mute)}.small{font-size:14px}
+.grid{display:grid;grid-template-columns:minmax(0,5fr) minmax(0,7fr);gap:clamp(20px,3vw,44px);align-items:start}
+.grid.wide{grid-template-columns:minmax(0,1fr) minmax(0,1fr)}
+@media(max-width:900px){.grid,.grid.wide{grid-template-columns:minmax(0,1fr)}}
+.fig{position:relative;min-height:400px;border:1px solid var(--rule);border-radius:6px;background:var(--panel);touch-action:none;cursor:grab}
+.fig.tall{min-height:460px}.fig>canvas,.fig>svg{position:absolute;inset:0;width:100%;height:100%}
+.cap{font-size:14px;color:var(--mute);margin:8px 0 0}
+.formula{font-size:20px;margin:14px 0;padding:12px 16px;border-left:3px solid var(--rule);overflow-x:auto;white-space:nowrap}
+.ctl{display:grid;grid-template-columns:repeat(auto-fit,minmax(170px,1fr));gap:6px 18px;margin:14px 0}
+.ctl label{display:flex;align-items:center;gap:10px;font-size:15px}
+.ctl label b{font-weight:600;min-width:28px}.ctl output{min-width:40px;text-align:right;font-variant-numeric:tabular-nums}
+input[type=range]{flex:1;height:44px;accent-color:var(--pos)}
+.btns{display:flex;flex-wrap:wrap;gap:8px;margin:10px 0}
+button{font:inherit;font-size:15px;min-height:44px;padding:0 16px;border:1px solid var(--rule);border-radius:6px;background:var(--bg);color:var(--ink);cursor:pointer}
+button[aria-pressed=true]{border-color:var(--pos);color:var(--pos);font-weight:600}
+button:focus-visible,input:focus-visible{outline:2px solid var(--pos);outline-offset:2px}
+.mat{display:inline-grid;grid-template-columns:repeat(var(--n),auto);gap:2px 16px;padding:4px 10px;border-left:2px solid var(--ink);border-right:2px solid var(--ink);font-variant-numeric:tabular-nums;text-align:right;vertical-align:middle}
+.facts{font-size:15px;margin:6px 0;line-height:1.7}.facts .p{color:var(--pos);font-weight:600}.facts .n{color:var(--neg);font-weight:600}
+table{border-collapse:collapse;width:100%;font-size:15px;margin:10px 0}
+th,td{text-align:left;padding:9px 10px;border-bottom:1px solid var(--rule);vertical-align:top}th{font-weight:600}
+.key{display:flex;flex-wrap:wrap;gap:14px;font-size:14px;color:var(--mute);margin:8px 0}
+.key i{display:inline-block;width:18px;height:3px;vertical-align:middle;margin-right:6px}
+nav.scroll{display:flex;gap:18px;font-size:15px;padding:12px max(5vw,16px);border-bottom:1px solid var(--rule);max-width:1240px;margin:0 auto;overflow-x:auto}
+nav a{color:var(--mute);text-decoration:none;white-space:nowrap}nav a:hover{color:var(--ink)}
+a{color:var(--pos)}hr{border:0;border-top:1px solid var(--rule);margin:0}
+pre,.scroll{overflow-x:auto}.scroll a{flex:none}html{scroll-padding-top:20px}
+@media(max-width:600px){table{font-size:13px}.stack thead{display:none}.stack tr{display:grid;padding-block:10px}.stack td{display:flow-root;border:0;padding:3px 0;padding-inline-start:8em;text-align:start}.stack td::before{content:attr(data-l);float:inline-start;width:7.5em;margin-inline-start:-8em;white-space:normal}.stack td:empty{display:none}.fig{min-height:340px}}
+</style><script>new MutationObserver(()=>{for(const c of document.querySelectorAll('.stack td:not([data-l])')){let i=0,p=c;while(p=p.previousElementSibling)i+=p.colSpan;c.dataset.l=c.closest('table').rows[0].cells[i]?.textContent||''}}).observe(document,{childList:true,subtree:true})</script>
+</head>
+<body>
+<nav class="scroll"><a href="#shape">Shape</a><a href="#axes">Original vs eigen-axes</a><a href="#cut">Level cut</a><a href="#three">3×3 in 3D</a><a href="#animals">Two animals</a><a href="#summary">Summary</a></nav>
+
+<section class="band grid" id="shape">
+  <div>
+    <h1>The signs of the eigenvalues decide the shape of xᵀAx</h1>
+    <p>For a symmetric 2×2 matrix, x = (x₁, x₂) is one vector and xᵀAx is one number. Plot that number as height over every x and you get one surface.</p>
+    <div class="formula">xᵀAx = a·x₁² + 2b·x₁x₂ + c·x₂² = λ₁y₁² + λ₂y₂²</div>
+    <p>In eigen-coordinates y = Vᵀx (a rotation), the cross term disappears. Each eigenvalue is the bend along its own eigenvector: one positive and one negative gives a saddle.</p>
+    <div class="ctl">
+      <label><b>λ₁</b><input type="range" id="l1" min="-2" max="2" step="0.1" value="1"><output id="l1o"></output></label>
+      <label><b>λ₂</b><input type="range" id="l2" min="-2" max="2" step="0.1" value="-1"><output id="l2o"></output></label>
+    </div>
+    <p class="facts">Shape: <span id="shape0"></span></p>
+  </div>
+  <div>
+    <div class="fig tall" id="f0"><canvas></canvas></div>
+    <div class="key"><span><i style="background:var(--pos)"></i>along y₁ (λ₁)</span><span><i style="background:var(--neg)"></i>along y₂ (λ₂)</span><span>Drag to rotate</span></div>
+  </div>
+</section>
+<hr>
+<section class="band">
+  <h2>Eigenvalue signs and the shapes they give</h2>
+  <table class="stack">
+    <thead><tr><th>Eigenvalues</th><th>Surface z = xᵀAx</th><th>Level curves xᵀAx = h</th><th>Matrix is</th></tr></thead>
+    <tbody>
+      <tr><td>both positive</td><td>bowl (elliptic paraboloid)</td><td>ellipses</td><td>positive definite</td></tr>
+      <tr><td>both negative</td><td>upside-down bowl</td><td>ellipses (h &lt; 0)</td><td>negative definite</td></tr>
+      <tr><td>one +, one −</td><td>saddle (hyperbolic paraboloid)</td><td>hyperbolas</td><td>indefinite</td></tr>
+      <tr><td>one is zero</td><td>trough or ridge</td><td>parallel lines</td><td>semidefinite</td></tr>
+    </tbody>
+  </table>
+</section>
+<hr>
+<section class="band" id="axes">
+  <h2>Original axes and eigen-axes show the same surface, rotated</h2>
+  <p>Changing a, b or c on the left turns and reshapes the surface over (x₁, x₂). The right shows the same values over (y₁, y₂), where the bends line up with the axes. Every vector x appears in both, because the change of axes is one-to-one.</p>
+  <div class="ctl">
+    <label><b>a</b><input type="range" id="sa" min="-2" max="2" step="0.1" value="0"><output id="sao"></output></label>
+    <label><b>b</b><input type="range" id="sb" min="-2" max="2" step="0.1" value="1"><output id="sbo"></output></label>
+    <label><b>c</b><input type="range" id="sc" min="-2" max="2" step="0.1" value="0"><output id="sco"></output></label>
+  </div>
+  <p class="facts">A = <span class="mat" style="--n:2" id="matA"></span> &nbsp; <span id="eigA"></span></p>
+  <div class="grid wide">
+    <div><div class="fig" id="f1"><canvas></canvas></div><p class="cap" id="cap1"></p></div>
+    <div><div class="fig" id="f2"><canvas></canvas></div><p class="cap" id="cap2"></p></div>
+  </div>
+  <div class="key"><span><i style="background:var(--pos)"></i>along v₁</span><span><i style="background:var(--neg)"></i>along v₂</span><span><i style="background:var(--mute)"></i>x₁, x₂ axes (dashed)</span><span>Drag either figure; both turn together</span></div>
+</section>
+<hr>
+<section class="band grid" id="cut">
+  <div>
+    <h2>Cutting a bowl at height h gives an ellipse</h2>
+    <p>The plane z = h meets the bowl where xᵀAx = h. That set of vectors is an ellipse; its shadow is drawn dashed on the floor.</p>
+    <p>Its half-width along vᵢ is √(h/λᵢ), so it is narrowest along the steepest direction. Make the matrix a saddle and the same cut becomes a hyperbola.</p>
+    <div class="ctl">
+      <label><b>a</b><input type="range" id="ca" min="-2" max="2" step="0.1" value="1.5"><output id="cao"></output></label>
+      <label><b>b</b><input type="range" id="cb" min="-2" max="2" step="0.1" value="0.5"><output id="cbo"></output></label>
+      <label><b>c</b><input type="range" id="cc" min="-2" max="2" step="0.1" value="1"><output id="cco"></output></label>
+      <label><b>h</b><input type="range" id="ch" min="0.1" max="2" step="0.05" value="0.8"><output id="cho"></output></label>
+    </div>
+    <p class="facts" id="cutfacts"></p>
+  </div>
+  <div><div class="fig tall" id="f3"><canvas></canvas></div>
+    <div class="key"><span><i style="background:var(--lvl)"></i>xᵀAx = h, on the surface and its floor shadow</span></div></div>
+</section>
+<hr>
+<section class="band grid" id="three">
+  <div>
+    <h2>A 3×3 matrix needs 4D, so we draw its level surface</h2>
+    <p>With x = (x₁, x₂, x₃) the floor is already 3D, so the graph of xᵀAx lives in 4D. The figure shows the slice xᵀAx = ±1: the 3D version of a level curve.</p>
+    <p class="small mute">+ + + → ellipsoid · + + − → hyperboloid of one sheet · + − − → two sheets · − − − → empty for +1</p>
+    <div class="ctl" id="ctl3"></div>
+    <div class="btns"><button id="cp" aria-pressed="true">xᵀAx = +1</button><button id="cm" aria-pressed="false">xᵀAx = −1</button></div>
+    <p class="facts">A = <span class="mat" style="--n:3" id="mat3"></span></p>
+    <p class="facts" id="eig3"></p>
+  </div>
+  <div><div class="fig tall" id="f4"><canvas></canvas></div>
+    <div class="key"><span><i style="background:var(--pos)"></i>eigenvector, λ &gt; 0</span><span><i style="background:var(--neg)"></i>eigenvector, λ &lt; 0</span><span>Cut off at radius 2.2</span></div></div>
+</section>
+<hr>
+<section class="band" id="animals">
+  <h2>As a relationship matrix, A predicts what two animals do after a disturbance</h2>
+  <div class="grid wide">
+    <div>
+      <p>Let x be how far each population sits above or below its balance level. Near balance, dx/dt = Ax, where aᵢⱼ is the effect of species j on species i's growth. Diagonal entries are self-limitation.</p>
+      <div class="formula">d‖x‖²/dt = 2·xᵀAx</div>
+      <p>So the quadratic form is the rate the disturbance grows. Negative eigenvalues: it dies out. A positive one: it runs away along that eigenvector. Complex: the populations cycle.</p>
+    </div>
+    <div>
+      <div class="btns" id="presets"></div>
+      <div class="ctl">
+        <label><b>a₁₁</b><input type="range" id="p11" min="-2" max="2" step="0.1"><output id="p11o"></output></label>
+        <label><b>a₁₂</b><input type="range" id="p12" min="-2" max="2" step="0.1"><output id="p12o"></output></label>
+        <label><b>a₂₁</b><input type="range" id="p21" min="-2" max="2" step="0.1"><output id="p21o"></output></label>
+        <label><b>a₂₂</b><input type="range" id="p22" min="-2" max="2" step="0.1"><output id="p22o"></output></label>
+      </div>
+      <p class="facts">A = <span class="mat" style="--n:2" id="matP"></span> &nbsp; <span id="eigP"></span></p>
+      <p class="facts"><b id="outP" style="font-weight:600"></b></p>
+    </div>
+  </div>
+  <div class="grid wide">
+    <div><div class="fig" id="f5" style="cursor:default"><svg></svg></div><p class="cap">Distance from balance over time, start x(0) = (0.5, 0.3)</p></div>
+    <div><div class="fig" id="f6" style="cursor:default"><svg></svg></div><p class="cap">Same run in the (x₁, x₂) plane with the real eigenvector directions</p></div>
+  </div>
+  <div class="key"><span><i style="background:var(--pos)"></i>Species 1</span><span><i style="background:var(--neg)"></i>Species 2</span></div>
+</section>
+<hr>
+<section class="band" id="summary">
+  <h2>One sign pattern, two readings</h2>
+  <table class="stack">
+    <thead><tr><th>Eigenvalues of A</th><th>Shape of xᵀAx</th><th>Two-animal outcome</th></tr></thead>
+    <tbody>
+      <tr><td>both negative</td><td>upside-down bowl</td><td>both return to balance</td></tr>
+      <tr><td>one +, one −</td><td>saddle</td><td>runaway along the + eigenvector: one wins (competition) or both boom (mutualism)</td></tr>
+      <tr><td>both positive</td><td>bowl</td><td>every disturbance grows</td></tr>
+      <tr><td>complex, negative real part</td><td>(A not symmetric)</td><td>populations cycle and settle (predator–prey)</td></tr>
+    </tbody>
+  </table>
+  <p class="small mute">dx/dt = Ax is a linearization near balance: runaway curves show the direction of escape, not real population sizes.</p>
+</section>
+
+<script>
+{
+const $=id=>document.getElementById(id);
+const f1=v=>(Math.abs(v)<0.005?0:v).toFixed(1),f2=v=>(Math.abs(v)<0.005?0:v).toFixed(2);
+const dark=()=>{const t=document.documentElement.dataset.theme;return t==='dark'||(t!=='light'&&matchMedia('(prefers-color-scheme: dark)').matches)};
+const pal=()=>dark()?{pos:[106,168,224],neg:[240,96,108],lvl:[169,152,239],ink:'#e8e9ec',mute:'#a3a8b2',grid:'rgba(160,165,175,0.35)'}:{pos:[11,79,138],neg:[193,18,31],lvl:[90,63,176],ink:'#10131a',mute:'#555b66',grid:'rgba(90,95,105,0.35)'};
+const rgb=(c,a)=>`rgba(${c[0]},${c[1]},${c[2]},${a})`;
+function setup(fig){const cv=fig.querySelector('canvas');const W=fig.clientWidth,H=fig.clientHeight,d=devicePixelRatio||1;cv.width=W*d;cv.height=H*d;const g=cv.getContext('2d');g.setTransform(d,0,0,d,0,0);g.clearRect(0,0,W,H);return {g,W,H}}
+function cam(yaw,pitch){return {yaw,pitch}}
+function projector(c,W,H,scale,dy){const cy=Math.cos(c.yaw),sy=Math.sin(c.yaw),cp=Math.cos(c.pitch),sp=Math.sin(c.pitch),k=Math.min(W,H)*scale;
+  const rot=(x,y,z)=>{const xr=x*cy-y*sy,yr=x*sy+y*cy;return [xr,yr*cp-z*sp,yr*sp+z*cp]};
+  return {rot,P:(x,y,z)=>{const r=rot(x,y,z);return [W/2+r[0]*k,H/2+dy-r[2]*k,r[1]]}}}
+function drag(figs,c,redraw){figs.forEach(fig=>{let d=null;fig.addEventListener('pointerdown',e=>{d=[e.clientX,e.clientY,c.yaw,c.pitch];fig.setPointerCapture(e.pointerId);fig.style.cursor='grabbing'});
+  fig.addEventListener('pointermove',e=>{if(!d)return;c.yaw=d[2]+(e.clientX-d[0])*0.01;c.pitch=Math.max(0.12,Math.min(Math.PI-0.12,d[3]-(e.clientY-d[1])*0.01));redraw()});
+  const up=()=>{d=null;fig.style.cursor='grab'};fig.addEventListener('pointerup',up);fig.addEventListener('pointercancel',up)})}
+function eig2(a,b,c){const th=0.5*Math.atan2(2*b,a-c),cs=Math.cos(th),sn=Math.sin(th);return {L1:a*cs*cs+2*b*sn*cs+c*sn*sn,L2:a*sn*sn-2*b*sn*cs+c*cs*cs,v1:[cs,sn],v2:[-sn,cs]}}
+function shape2(p,q){const e=0.05,P=Math.abs(p)<e?0:p,Q=Math.abs(q)<e?0:q;if(!P&&!Q)return 'flat plane';if(!P||!Q)return P+Q>0?'trough (valley)':'ridge';if(P>0&&Q>0)return 'bowl, minimum at the origin';if(P<0&&Q<0)return 'upside-down bowl, maximum at the origin';return 'saddle point at the origin'}
+function surface(fig,c,o){const {g,W,H}=setup(fig),C=pal(),{P}=projector(c,W,H,0.34,30);
+  const F=(x,y)=>o.k*o.f(x,y),N=24,qs=[];g.font='13px Literata, serif';
+  if(o.floor!==undefined){const fl=[[-1,-1],[1,-1],[1,1],[-1,1]].map(p=>P(p[0],p[1],o.floor));g.beginPath();fl.forEach((p,i)=>i?g.lineTo(p[0],p[1]):g.moveTo(p[0],p[1]));g.closePath();g.strokeStyle=C.grid;g.lineWidth=0.7;g.stroke()}
+  (o.axes||[]).forEach(a=>{const z=o.floor||0,s=P(-1.2*a.d[0],-1.2*a.d[1],z),e=P(1.2*a.d[0],1.2*a.d[1],z);g.beginPath();g.moveTo(s[0],s[1]);g.lineTo(e[0],e[1]);g.strokeStyle=C.mute;g.setLineDash([4,3]);g.lineWidth=1;g.stroke();g.setLineDash([]);g.fillStyle=C.mute;g.fillText(a.n,e[0]+4,e[1])});
+  const lvl=[];if(o.h!==undefined){for(let s=0;s<=240;s++){const t=2*Math.PI*s/240,u=[Math.cos(t),Math.sin(t)],q=o.f(u[0],u[1]);if(q>1e-6){const r=Math.sqrt(o.h/q),x=u[0]*r,y=u[1]*r;lvl.push(Math.abs(x)<=1&&Math.abs(y)<=1?[x,y]:null)}else lvl.push(null)}}
+  const path=(z,col,w,dash)=>{g.beginPath();let pen=false;lvl.forEach(p=>{if(!p){pen=false;return}const q=P(p[0],p[1],z);pen?g.lineTo(q[0],q[1]):g.moveTo(q[0],q[1]);pen=true});g.strokeStyle=col;g.lineWidth=w;g.setLineDash(dash);g.stroke();g.setLineDash([])};
+  if(lvl.length)path(o.floor,rgb(C.lvl,1),2,[5,4]);
+  for(let i=0;i<N;i++)for(let j=0;j<N;j++){const x0=-1+2*i/N,x1=-1+2*(i+1)/N,y0=-1+2*j/N,y1=-1+2*(j+1)/N;const p=[[x0,y0],[x1,y0],[x1,y1],[x0,y1]].map(q=>P(q[0],q[1],F(q[0],q[1])));
+    qs.push({p,d:(p[0][2]+p[1][2]+p[2][2]+p[3][2])/4,z:F((x0+x1)/2,(y0+y1)/2),s:1});
+    if(o.h!==undefined&&i%2===0&&j%2===0){const X1=-1+2*(i+2)/N,Y1=-1+2*(j+2)/N,zh=o.k*o.h;const pp=[[x0,y0],[X1,y0],[X1,Y1],[x0,Y1]].map(q=>P(q[0],q[1],zh));qs.push({p:pp,d:(pp[0][2]+pp[1][2]+pp[2][2]+pp[3][2])/4,s:0})}}
+  qs.sort((u,v)=>v.d-u.d);
+  for(const q of qs){g.beginPath();q.p.forEach((p,i)=>i?g.lineTo(p[0],p[1]):g.moveTo(p[0],p[1]));g.closePath();
+    if(q.s){const t=Math.min(1,Math.abs(q.z)/0.9);g.fillStyle=rgb(q.z>=0?C.pos:C.neg,0.12+0.5*t);g.fill();g.strokeStyle=C.grid;g.lineWidth=0.5;g.stroke()}else{g.fillStyle=rgb(C.lvl,0.13);g.fill()}}
+  (o.curves||[]).forEach(cu=>{const col=rgb(cu.c==='pos'?C.pos:C.neg,1);g.beginPath();for(let s=0;s<=60;s++){const u=-1+2*s/60,x=u*cu.d[0],y=u*cu.d[1],q=P(x,y,F(x,y));s?g.lineTo(q[0],q[1]):g.moveTo(q[0],q[1])}g.strokeStyle=col;g.lineWidth=3;g.stroke();const e=P(1.1*cu.d[0],1.1*cu.d[1],F(cu.d[0],cu.d[1]));g.fillStyle=col;g.font='600 14px Literata, serif';g.fillText(cu.n,e[0]+4,e[1]-4)});
+  if(lvl.length)path(o.k*o.h,rgb(C.lvl,1),3,[]);
+  const z0=P(0,0,0);g.beginPath();g.arc(z0[0],z0[1],4,0,7);g.fillStyle=C.ink;g.fill()}
+const kOf=(L1,L2)=>0.9/(2*Math.max(Math.abs(L1),Math.abs(L2),0.5));
+
+/* hero */
+const c0=cam(0.7,1.05),fig0=$('f0');
+function draw0(){const a=+$('l1').value,b=+$('l2').value;$('l1o').textContent=f1(a);$('l2o').textContent=f1(b);$('shape0').textContent=shape2(a,b);
+  surface(fig0,c0,{f:(x,y)=>a*x*x+b*y*y,k:kOf(a,b),curves:[{d:[1,0],c:a>=0?'pos':'neg',n:'y₁'},{d:[0,1],c:b>=0?'pos':'neg',n:'y₂'}]})}
+['l1','l2'].forEach(id=>$(id).addEventListener('input',draw0));drag([fig0],c0,draw0);
+
+/* original vs eigen */
+const c1=cam(0.6,1.05),fa=$('f1'),fb=$('f2');
+function draw1(){const a=+$('sa').value,b=+$('sb').value,c=+$('sc').value;$('sao').textContent=f1(a);$('sbo').textContent=f1(b);$('sco').textContent=f1(c);
+  $('matA').innerHTML=[a,b,b,c].map(f1).map(v=>`<span>${v}</span>`).join('');
+  const E=eig2(a,b,c),k=kOf(E.L1,E.L2),sg=v=>(v<0?' − ':' + ')+f1(Math.abs(v));
+  $('eigA').innerHTML=`<span class="${E.L1>=0?'p':'n'}">λ₁ = ${f2(E.L1)}</span>, v₁ = (${f2(E.v1[0])}, ${f2(E.v1[1])}) · <span class="${E.L2>=0?'p':'n'}">λ₂ = ${f2(E.L2)}</span>, v₂ = (${f2(E.v2[0])}, ${f2(E.v2[1])}) · ${shape2(E.L1,E.L2)}`;
+  $('cap1').textContent=`Original axes: z = ${f1(a)}x₁²${sg(2*b)}x₁x₂${sg(c)}x₂²`;$('cap2').textContent=`Eigen-axes: z = ${f2(E.L1)}y₁²${(E.L2<0?' − ':' + ')+f2(Math.abs(E.L2))}y₂²`;
+  surface(fa,c1,{f:(x,y)=>a*x*x+2*b*x*y+c*y*y,k,axes:[{d:[1,0],n:'x₁'},{d:[0,1],n:'x₂'}],curves:[{d:E.v1,c:E.L1>=0?'pos':'neg',n:'v₁'},{d:E.v2,c:E.L2>=0?'pos':'neg',n:'v₂'}]});
+  surface(fb,c1,{f:(x,y)=>E.L1*x*x+E.L2*y*y,k,curves:[{d:[1,0],c:E.L1>=0?'pos':'neg',n:'y₁'},{d:[0,1],c:E.L2>=0?'pos':'neg',n:'y₂'}]})}
+['sa','sb','sc'].forEach(id=>$(id).addEventListener('input',draw1));drag([fa,fb],c1,draw1);
+
+/* level cut */
+const c3=cam(0.6,1.05),f3=$('f3');
+function draw3(){const a=+$('ca').value,b=+$('cb').value,c=+$('cc').value,h=+$('ch').value;$('cao').textContent=f1(a);$('cbo').textContent=f1(b);$('cco').textContent=f1(c);$('cho').textContent=h.toFixed(2);
+  const E=eig2(a,b,c),e=0.05,cut=E.L1>e&&E.L2>e?'an ellipse':E.L1>e&&E.L2<-e?'a hyperbola':E.L1>e?'two parallel lines':'empty: the surface never reaches h';
+  $('cutfacts').innerHTML=`λ₁ = ${f2(E.L1)}, λ₂ = ${f2(E.L2)} · surface: ${shape2(E.L1,E.L2)} · cut: <b>${cut}</b>`;
+  surface(f3,c3,{f:(x,y)=>a*x*x+2*b*x*y+c*y*y,k:kOf(E.L1,E.L2),h,floor:-0.35,axes:[{d:[1,0],n:'x₁'},{d:[0,1],n:'x₂'}],curves:[{d:E.v1,c:E.L1>=0?'pos':'neg',n:'v₁'},{d:E.v2,c:E.L2>=0?'pos':'neg',n:'v₂'}]})}
+['ca','cb','cc','ch'].forEach(id=>$(id).addEventListener('input',draw3));drag([f3],c3,draw3);
+
+/* 3x3 */
+const keys=[['a11','a₁₁',1],['a22','a₂₂',1],['a33','a₃₃',-1],['a12','a₁₂',0.3],['a13','a₁₃',0],['a23','a₂₃',0]];
+$('ctl3').innerHTML=keys.map(([k,n,v])=>`<label><b>${n}</b><input type="range" id="${k}" min="-2" max="2" step="0.1" value="${v}"><output id="${k}o"></output></label>`).join('');
+let cval=1;const c4=cam(0.6,0.45),f4=$('f4');
+const mul=(A,B)=>A.map((r,i)=>B[0].map((_,j)=>r.reduce((s,_,k)=>s+A[i][k]*B[k][j],0))),Tr=A=>A[0].map((_,j)=>A.map(r=>r[j]));
+function eig3(A){let a=A.map(r=>r.slice()),V=[[1,0,0],[0,1,0],[0,0,1]];for(let it=0;it<60;it++){let p=0,q=1,m=Math.abs(a[0][1]);if(Math.abs(a[0][2])>m){p=0;q=2;m=Math.abs(a[0][2])}if(Math.abs(a[1][2])>m){p=1;q=2;m=Math.abs(a[1][2])}if(m<1e-12)break;
+  const th=0.5*Math.atan2(2*a[p][q],a[p][p]-a[q][q]),cs=Math.cos(th),sn=Math.sin(th),G=[[1,0,0],[0,1,0],[0,0,1]];G[p][p]=cs;G[q][q]=cs;G[q][p]=sn;G[p][q]=-sn;a=mul(mul(Tr(G),a),G);V=mul(V,G)}
+  return [0,1,2].map(i=>({l:a[i][i],v:[V[0][i],V[1][i],V[2][i]]})).sort((x,y)=>y.l-x.l)}
+function name3(ls,c){const t=0.05;let np=0,nn=0,nz=0;ls.forEach(l=>{if(l>t)np++;else if(l<-t)nn++;else nz++});const P=c>0?np:nn,N=c>0?nn:np;
+  if(nz===0)return P===3?'ellipsoid':P===2?'hyperboloid of one sheet':P===1?'hyperboloid of two sheets':'empty: no x gives this value';
+  if(nz===1)return P===2?'elliptic cylinder':P===1&&N===1?'hyperbolic cylinder':'empty';return nz===2&&P===1?'pair of parallel planes':'empty'}
+function draw4(){const v={};keys.forEach(([k])=>{v[k]=+$(k).value;$(k+'o').textContent=f1(v[k])});
+  const A=[[v.a11,v.a12,v.a13],[v.a12,v.a22,v.a23],[v.a13,v.a23,v.a33]];$('mat3').innerHTML=A.flat().map(x=>`<span>${f1(x)}</span>`).join('');
+  const E=eig3(A),nm=name3(E.map(e=>e.l),cval);
+  $('eig3').innerHTML=E.map((e,i)=>`<span class="${e.l>=0?'p':'n'}">λ${'₁₂₃'[i]} = ${f2(e.l)}</span>`).join(' · ')+` · surface: <b>${nm}</b>`;
+  const {g,W,H}=setup(f4),C=pal(),{rot,P}=projector(c4,W,H,0.17,0),R=2.2;g.font='13px Literata, serif';
+  [[[1,0,0],'x₁'],[[0,1,0],'x₂'],[[0,0,1],'x₃']].forEach(([d,n])=>{const s=P(-R*d[0],-R*d[1],-R*d[2]),e=P(R*d[0],R*d[1],R*d[2]);g.beginPath();g.moveTo(s[0],s[1]);g.lineTo(e[0],e[1]);g.strokeStyle=C.mute;g.setLineDash([4,3]);g.lineWidth=1;g.stroke();g.setLineDash([]);g.fillStyle=C.mute;g.fillText(n,e[0]+4,e[1])});
+  const grids=[],Lp=E.map(e=>cval*e.l),VV=E.map(e=>e.v),M=96;
+  const toW=y=>[0,1,2].map(r=>VV[0][r]*y[0]+VV[1][r]*y[1]+VV[2][r]*y[2]);
+  const mk=(fn,s0,s1,Ns)=>{const gr=[];for(let i=0;i<=Ns;i++){const sv=s0+(s1-s0)*i/Ns,row=[];for(let j=0;j<M;j++){const w=toW(fn(sv,2*Math.PI*j/M));row.push({w,p:P(w[0],w[1],w[2])})}gr.push(row)}return gr};
+  const fit=(fn,s0,s1)=>{const ok=sv=>{for(let j=0;j<48;j++){const y=fn(sv,2*Math.PI*j/48);if(Math.hypot(...y)>R)return false}return true};if(ok(s1))return s1;let lo=s0,hi=s1;for(let it=0;it<30;it++){const m=(lo+hi)/2;ok(m)?lo=m:hi=m}return lo};
+  const pi=[0,1,2].filter(i=>Lp[i]>0.05),ni=[0,1,2].filter(i=>Lp[i]<-0.05),sq=i=>Math.sqrt(Math.abs(Lp[i]));
+  if(pi.length+ni.length===3&&pi.length>0){
+    if(pi.length===3){grids.push(mk((sv,t)=>{const y=[0,0,0];y[0]=Math.sin(sv)*Math.cos(t)/sq(0);y[1]=Math.sin(sv)*Math.sin(t)/sq(1);y[2]=Math.cos(sv)/sq(2);return y},0,Math.PI,48))}
+    else if(pi.length===2){const [i,j]=pi,k=ni[0],fn=(sv,t)=>{const y=[0,0,0];y[i]=Math.cosh(sv)*Math.cos(t)/sq(i);y[j]=Math.cosh(sv)*Math.sin(t)/sq(j);y[k]=Math.sinh(sv)/sq(k);return y};const S=fit(fn,0,4);grids.push(mk(fn,-S,S,60))}
+    else{const i=pi[0],[j,k]=ni;for(const sg of [1,-1]){const fn=(sv,t)=>{const y=[0,0,0];y[i]=sg*Math.cosh(sv)/sq(i);y[j]=Math.sinh(sv)*Math.cos(t)/sq(j);y[k]=Math.sinh(sv)*Math.sin(t)/sq(k);return y};const S=fit(fn,0,4);if(Math.hypot(...fn(0,0))<=R)grids.push(mk(fn,0,S,40))}}}
+  else if(pi.length>0){const N=84,M2=132,gr=[];for(let i=0;i<=N;i++){const row=[],th=Math.PI*i/N;for(let j=0;j<M2;j++){const ph=2*Math.PI*j/M2,u=[Math.sin(th)*Math.cos(ph),Math.sin(th)*Math.sin(ph),Math.cos(th)];
+    const Au=[0,1,2].map(r=>A[r][0]*u[0]+A[r][1]*u[1]+A[r][2]*u[2]),Q=u[0]*Au[0]+u[1]*Au[1]+u[2]*Au[2];let pt=null;if(cval*Q>1e-6){const r=Math.sqrt(1/Math.abs(Q));if(r<=R){const w=[u[0]*r,u[1]*r,u[2]*r];pt={w,p:P(w[0],w[1],w[2])}}}row.push(pt)}gr.push(row)}grids.push(gr)}
+  const qs=[],base=cval>0?C.pos:C.neg,Lv=[-0.45,-0.65,0.6],Ln=Math.hypot(...Lv);
+  for(const pts of grids){const Mg=pts[0].length;for(let i=0;i<pts.length-1;i++)for(let j=0;j<Mg;j++){const q=[pts[i][j],pts[i+1][j],pts[i+1][(j+1)%Mg],pts[i][(j+1)%Mg]];if(q.some(x=>!x))continue;
+    const cw=[0,1,2].map(d=>(q[0].w[d]+q[1].w[d]+q[2].w[d]+q[3].w[d])/4),n=[0,1,2].map(r=>A[r][0]*cw[0]+A[r][1]*cw[1]+A[r][2]*cw[2]),nr=rot(...n),nl=Math.hypot(...nr)||1;
+    qs.push({q,d:(q[0].p[2]+q[1].p[2]+q[2].p[2]+q[3].p[2])/4,sh:0.35+0.65*Math.abs((nr[0]*Lv[0]+nr[1]*Lv[1]+nr[2]*Lv[2])/(nl*Ln))})}}
+  qs.sort((a,b)=>b.d-a.d);
+  for(const o of qs){g.beginPath();o.q.forEach((x,i)=>i?g.lineTo(x.p[0],x.p[1]):g.moveTo(x.p[0],x.p[1]));g.closePath();g.fillStyle=rgb(base.map(c=>Math.round(c*(0.55+0.45*o.sh))),0.55+0.3*o.sh);g.fill();g.strokeStyle=rgb(base.map(c=>Math.round(c*(0.55+0.45*o.sh))),0.55+0.3*o.sh);g.lineWidth=0.6;g.stroke()}
+  if(!qs.length){g.fillStyle=C.mute;g.font='15px Literata, serif';g.textAlign='center';g.fillText('No vector x gives xᵀAx = '+(cval>0?'+1':'−1'),W/2,H/2-70);g.textAlign='start'}
+  E.forEach((e,i)=>{const L=R*0.95,s=P(-L*e.v[0],-L*e.v[1],-L*e.v[2]),t=P(L*e.v[0],L*e.v[1],L*e.v[2]),col=rgb(e.l>=0?C.pos:C.neg,1);g.beginPath();g.moveTo(s[0],s[1]);g.lineTo(t[0],t[1]);g.strokeStyle=col;g.lineWidth=2.5;g.stroke();g.fillStyle=col;g.font='600 13px Literata, serif';const lb=P(0.7*L*e.v[0],0.7*L*e.v[1],0.7*L*e.v[2]);g.fillText('v'+'₁₂₃'[i],lb[0]+6,lb[1]-6)});
+  const z0=P(0,0,0);g.beginPath();g.arc(z0[0],z0[1],4,0,7);g.fillStyle=C.ink;g.fill()}
+keys.forEach(([k])=>$(k).addEventListener('input',draw4));drag([f4],c4,draw4);
+$('cp').onclick=()=>{cval=1;$('cp').setAttribute('aria-pressed','true');$('cm').setAttribute('aria-pressed','false');draw4()};
+$('cm').onclick=()=>{cval=-1;$('cm').setAttribute('aria-pressed','true');$('cp').setAttribute('aria-pressed','false');draw4()};
+
+/* two animals */
+const presets=[['Weak competition',[-1,-0.5,-0.5,-1]],['Strong competition',[-1,-2,-2,-1]],['Strong mutualism',[-1,2,2,-1]],['Predator–prey',[-0.2,-1,1,-0.2]]];
+$('presets').innerHTML=presets.map((p,i)=>`<button data-i="${i}" aria-pressed="false">${p[0]}</button>`).join('');
+const pid=['p11','p12','p21','p22'];
+function setP(i){presets[i][1].forEach((v,j)=>$(pid[j]).value=v);[...$('presets').children].forEach((b,j)=>b.setAttribute('aria-pressed',j===i?'true':'false'));draw5()}
+$('presets').addEventListener('click',e=>{const b=e.target.closest('button');if(b)setP(+b.dataset.i)});
+pid.forEach(id=>$(id).addEventListener('input',()=>{[...$('presets').children].forEach(b=>b.setAttribute('aria-pressed','false'));draw5()}));
+function draw5(){const [a,b,c,d]=pid.map(id=>+$(id).value);pid.forEach((id,j)=>$(id+'o').textContent=f1([a,b,c,d][j]));
+  $('matP').innerHTML=[a,b,c,d].map(v=>`<span>${f1(v)}</span>`).join('');
+  const tr=a+d,det=a*d-b*c,disc=tr*tr/4-det;let ev,out,real=[];
+  if(disc>=0){const s=Math.sqrt(disc),l1=tr/2+s,l2=tr/2-s;ev=`<span class="${l1>=0?'p':'n'}">λ₁ = ${f2(l1)}</span>, <span class="${l2>=0?'p':'n'}">λ₂ = ${f2(l2)}</span>`;
+    for(const l of [l1,l2]){let v=Math.abs(b)>1e-9?[b,l-a]:Math.abs(c)>1e-9?[l-d,c]:(Math.abs(l-a)<1e-9?[1,0]:[0,1]);const n=Math.hypot(...v);real.push({l,v:[v[0]/n,v[1]/n]})}
+    out=l1<-0.01?'Both eigenvalues negative: the disturbance dies out and both species return to balance.':l2>0.01?'Both eigenvalues positive: every disturbance grows.':l1>0.01&&l2<-0.01?`Saddle: the disturbance runs away along v₁ = (${f2(real[0].v[0])}, ${f2(real[0].v[1])}). ${real[0].v[0]*real[0].v[1]<0?'Opposite signs: one species wins, the other crashes.':'Same signs: both species boom or crash together.'}`:'An eigenvalue is zero: the disturbance neither grows nor shrinks along one direction.'}
+  else{const re=tr/2,im=Math.sqrt(-disc);ev=`<span class="${re>=0?'p':'n'}">λ = ${f2(re)} ± ${f2(im)}i</span>`;out=re<-0.01?'Complex eigenvalues with negative real part: the populations cycle and the swings shrink.':re>0.01?'Complex eigenvalues with positive real part: the cycles grow.':'Pure imaginary eigenvalues: the populations cycle forever.'}
+  $('eigP').innerHTML=ev;$('outP').textContent=out;
+  let x=[0.5,0.3];const dt=0.02,T=10,run=[{t:0,x:x.slice()}];const f=(x)=>[a*x[0]+b*x[1],c*x[0]+d*x[1]];
+  for(let t=dt;t<=T+1e-9;t+=dt){const k1=f(x),k2=f([x[0]+dt/2*k1[0],x[1]+dt/2*k1[1]]),k3=f([x[0]+dt/2*k2[0],x[1]+dt/2*k2[1]]),k4=f([x[0]+dt*k3[0],x[1]+dt*k3[1]]);
+    x=[x[0]+dt/6*(k1[0]+2*k2[0]+2*k3[0]+k4[0]),x[1]+dt/6*(k1[1]+2*k2[1]+2*k3[1]+k4[1])];run.push({t,x:x.slice()});if(Math.hypot(...x)>6)break}
+  const C=pal(),pos=rgb(C.pos,1),neg=rgb(C.neg,1);
+  {const s=$('f5').querySelector('svg'),W=s.clientWidth,H=s.clientHeight,l=46,r=14,tp=16,bt=30,tm=run.at(-1).t||1,vm=Math.max(0.5,...run.map(p=>Math.max(Math.abs(p.x[0]),Math.abs(p.x[1]))));
+    const X=t=>l+t/tm*(W-l-r),Y=v=>tp+(H-tp-bt)/2-v/vm*((H-tp-bt)/2);const line=i=>run.map((p,j)=>`${j?'L':'M'}${X(p.t).toFixed(1)},${Y(p.x[i]).toFixed(1)}`).join('');
+    s.innerHTML=`<line x1="${l}" x2="${W-r}" y1="${Y(0)}" y2="${Y(0)}" stroke="${C.mute}" stroke-dasharray="4 3"/><text x="${l-6}" y="${Y(0)+4}" text-anchor="end" font-size="13" fill="${C.mute}">0</text><text x="${l-6}" y="${Y(vm)+4}" text-anchor="end" font-size="13" fill="${C.mute}">+${vm.toFixed(1)}</text><text x="${l-6}" y="${Y(-vm)+4}" text-anchor="end" font-size="13" fill="${C.mute}">−${vm.toFixed(1)}</text><text x="${l}" y="${H-8}" font-size="13" fill="${C.mute}">t = 0</text><text x="${W-r}" y="${H-8}" text-anchor="end" font-size="13" fill="${C.mute}">t = ${tm.toFixed(1)}${run.at(-1).t<T-0.01?' (left the frame)':''}</text><path d="${line(0)}" fill="none" stroke="${pos}" stroke-width="2.5"/><path d="${line(1)}" fill="none" stroke="${neg}" stroke-width="2.5"/>`}
+  {const s=$('f6').querySelector('svg'),W=s.clientWidth,H=s.clientHeight,m=Math.max(0.6,...run.map(p=>Math.max(Math.abs(p.x[0]),Math.abs(p.x[1]))))*1.08,S=Math.min(W,H)/2-24,cx=W/2,cy=H/2;
+    const X=v=>cx+v/m*S,Y=v=>cy-v/m*S;let h=`<line x1="${X(-m)}" x2="${X(m)}" y1="${Y(0)}" y2="${Y(0)}" stroke="${C.grid}"/><line x1="${X(0)}" x2="${X(0)}" y1="${Y(-m)}" y2="${Y(m)}" stroke="${C.grid}"/><text x="${X(m)-4}" y="${Y(0)-6}" text-anchor="end" font-size="13" fill="${C.mute}">x₁ (species 1)</text><text x="${X(0)+6}" y="${Y(m)+14}" font-size="13" fill="${C.mute}">x₂ (species 2)</text>`;
+    real.forEach((e,i)=>{const col=e.l>=0?pos:neg;h+=`<line x1="${X(-m*e.v[0])}" y1="${Y(-m*e.v[1])}" x2="${X(m*e.v[0])}" y2="${Y(m*e.v[1])}" stroke="${col}" stroke-opacity="0.45" stroke-width="2" stroke-dasharray="6 4"/><text x="${X(0.8*m*e.v[0])+6}" y="${Y(0.8*m*e.v[1])-6}" font-size="13" fill="${col}">v${'₁₂'[i]}</text>`});
+    h+=`<path d="${run.map((p,j)=>`${j?'L':'M'}${X(p.x[0]).toFixed(1)},${Y(p.x[1]).toFixed(1)}`).join('')}" fill="none" stroke="${C.ink}" stroke-width="2"/><circle cx="${X(0.5)}" cy="${Y(0.3)}" r="5" fill="${C.ink}"/><text x="${X(0.5)+8}" y="${Y(0.3)-8}" font-size="13" fill="${C.ink}">start</text><circle cx="${X(0)}" cy="${Y(0)}" r="3.5" fill="${C.mute}"/>`;s.innerHTML=h}}
+
+const all=()=>{draw0();draw1();draw3();draw4();draw5()};
+setP(0);all();
+new ResizeObserver(all).observe(document.body);
+matchMedia('(prefers-color-scheme: dark)').addEventListener('change',all);
+new MutationObserver(all).observe(document.documentElement,{attributes:true,attributeFilter:['data-theme']});
+}
+</script>
+</body>
+</html>
